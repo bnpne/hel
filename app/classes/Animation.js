@@ -1,44 +1,43 @@
-import Prefix from 'prefix'
-import each from 'lodash/each'
+import Prefix from "prefix";
 
 export default class {
-  constructor ({ element, elements }) {
-    const { animationDelay, animationTarget } = element.dataset
+  constructor({ element, elements }) {
+    const { animationDelay, animationTarget } = element.dataset;
 
-    this.delay = animationDelay
+    this.delay = animationDelay;
 
-    this.element = element
-    this.elements = elements
+    this.element = element;
+    this.elements = elements;
 
-    this.target = animationTarget ? element.closest(animationTarget) : element
-    this.transformPrefix = Prefix('transform')
+    this.target = animationTarget ? element.closest(animationTarget) : element;
+    this.transformPrefix = Prefix("transform");
 
-    this.isVisible = false
+    this.isVisible = false;
 
-    if ('IntersectionObserver' in window) {
-      this.createObserver()
+    if ("IntersectionObserver" in window) {
+      this.createObserver();
 
-      this.animateOut()
+      this.animateOut();
     } else {
-      this.animateIn()
+      this.animateIn();
     }
   }
 
-  createObserver () {
-    this.observer = new IntersectionObserver((entries) => {
-      each(entries, entry => {
+  createObserver() {
+    this.observer = new window.IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
         if (!this.isVisible && entry.isIntersecting) {
-          this.animateIn()
+          this.animateIn();
         }
-      })
-    }).observe(this.target)
+      });
+    }).observe(this.target);
   }
 
-  animateIn () {
-    this.isVisible = true
+  animateIn() {
+    this.isVisible = true;
   }
 
-  animateOut () {
-    this.isVisible = false
+  animateOut() {
+    this.isVisible = false;
   }
 }

@@ -1,6 +1,6 @@
-import "./utils/polyfill";
+// import "./utils/polyfill";
 import "./utils/scroll";
-import "./utils/sw";
+// import "./utils/sw";
 
 import AutoBind from "auto-bind";
 import each from "lodash/each";
@@ -10,22 +10,22 @@ import Detection from "./classes/Detection";
 import Home from "./pages/Home";
 
 import Canvas from "./components/Canvas";
-import Navigation from "./components/Navigation";
+
+import "../styles/index.scss";
 
 class App {
   constructor() {
     this.url = window.location.pathname;
-
-    AutoBind(this);
-
     this.mouse = {
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
     };
 
+    AutoBind(this);
+
+    // this.createPreloader();s
     this.createCanvas();
 
-    this.createNavigation();
     this.createHome();
 
     this.pages = {
@@ -33,13 +33,11 @@ class App {
     };
 
     this.page = this.pages[this.url];
-
-    this.page.show(this.url);
+    this.page.create();
+    this.page.show();
 
     this.addEventListeners();
     this.addLinksEventsListeners();
-
-    this.onResize();
   }
 
   createCanvas() {
@@ -59,15 +57,12 @@ class App {
     this.home = new Home();
   }
 
-  /**
-   * Change.
-   */
   async onChange({ push = !IS_DEVELOPMENT, url = null }) {
     url = url.replace(window.location.origin, "");
 
-    if (this.isFetching || this.url === url) return;
+    if (this.isLoading || this.url === url) return;
 
-    this.isFetching = true;
+    this.isLoading = true;
 
     this.url = url;
 
@@ -83,20 +78,13 @@ class App {
 
     this.navigation.onChange(this.url);
 
-    if (this.url.indexOf("/case") > -1) {
-      this.page = this.case;
-    } else {
-      this.page = this.pages[this.url];
-    }
-
+    this.page = this.pages[this.url];
+    this.page.create();
     await this.page.show(this.url);
 
-    this.isFetching = false;
+    this.isLoading = false;
   }
 
-  /**
-   * Loop.
-   */
   update() {
     if (this.page) {
       this.page.update();
@@ -109,9 +97,6 @@ class App {
     window.requestAnimationFrame(this.update);
   }
 
-  /**
-   * Events.
-   */
   onContextMenu(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -204,9 +189,6 @@ class App {
     this.update();
   }
 
-  /**
-   * Listeners.
-   */
   addEventListeners() {
     window.addEventListener("mousemove", this.onInteract, { passive: true });
     window.addEventListener("touchstart", this.onInteract, { passive: true });

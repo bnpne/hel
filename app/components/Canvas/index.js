@@ -1,86 +1,72 @@
-import { Renderer, Camera, Transform, Plane, Post, Vec2 } from "ogl";
-import each from "lodash/each";
-
-import fragment from "../../shaders/post.glsl";
-
-import { mapEach } from "../../utils/dom";
+import { Box, Camera, Plane, Renderer, Transform } from "ogl";
 
 import Media from "./Media";
 
+import Image1 from "../../../assets/1.jpg";
+
 export default class {
   constructor({ url }) {
-    this.background = {
-      r: 21,
-      g: 28,
-      b: 19,
-    };
-
     this.url = url;
 
-    this.renderer = new Renderer();
-    this.gl = this.renderer.gl;
-
-    this.resolution = {
-      value: new Vec2(),
-    };
-
-    this.planeGeometry = new Plane(this.gl, {
-      widthSegments: 20,
+    this.renderer = new Renderer({
+      alpha: true,
+      dpr: Math.min(window.devicePixelRatio, 2),
     });
 
+    this.gl = this.renderer.gl;
+    this.gl.clearColor(0.79607843137, 0.79215686274, 0.74117647058, 1);
     document.body.appendChild(this.gl.canvas);
 
     this.createCamera();
     this.createScene();
-    this.createPost();
+    this.createGeometry();
+    // this.createGeometries();
+
+    this.createMedias();
 
     this.onResize();
-
-    this.createList();
-
-    this.update();
   }
 
   createCamera() {
     this.camera = new Camera(this.gl);
     this.camera.fov = 45;
-    this.camera.position.z = 5;
+    this.camera.position.z = 20;
   }
 
   createScene() {
     this.scene = new Transform();
   }
 
-  createPost() {
-    this.post = new Post(this.gl);
+  createGeometries() {
+    this.boxGeometry = new Box(this.gl, {
+      heightSegments: 20,
+      widthSegments: 1,
+    });
 
-    this.pass = this.post.addPass({
-      fragment,
-      uniforms: {
-        uResolution: this.resolution,
-      },
+    this.planeGeometry = new Plane(this.gl, {
+      heightSegments: 20,
+      widthSegments: 1,
     });
   }
 
-  createList() {
-    this.mediasList = document.querySelector(".home__list");
-    this.mediasElements = document.querySelectorAll(".home__item");
-    this.medias = mapEach(this.mediasElements, (homeItem, index) => {
-      const homeLink = homeItem.querySelector(".home__link");
-      const homeLinkMedia = homeItem.querySelector(".home__link__media");
+  createGeometry() {
+    this.planeGeometry = new Plane(this.gl, {
+      heightSegments: 50,
+      widthSegments: 100,
+    });
+  }
 
-      const id = homeLink.href.replace(`${window.location.origin}/case/`, "");
-      const caseMedia = document.querySelector(`#${id} .case__media`);
+  createMedias() {
+    this.mediasImages = [{ image: Image1 }];
 
-      let media = new Media({
-        caseMedia,
+    this.medias = this.mediasImages.map(({ image }, index) => {
+      const media = new Media({
         geometry: this.planeGeometry,
         gl: this.gl,
-        homeItem,
-        homeLink,
-        homeLinkMedia,
-        id,
-        homeList: this.mediasList,
+        image,
+        index,
+        length: this.mediasImages.length,
+        renderer: this.renderer,
         scene: this.scene,
         screen: this.screen,
         viewport: this.viewport,
@@ -88,52 +74,10 @@ export default class {
 
       return media;
     });
-
-    if (this.url.indexOf("/case/") > -1) {
-      const id = this.url.replace("/case/", "").replace("/", "");
-      const media = this.medias.find((media) => media.id === id);
-
-      media.onOpen();
-    }
   }
 
-  /**
-   * Change.
-   */
-  onChange(url) {
-    if (url.indexOf("/about") > -1) {
-      each(this.medias, (media) => media.onAboutOpen());
-    } else {
-      each(this.medias, (media) => media.onAboutClose());
-    }
+  onChange(url) {}
 
-    if (url.indexOf("/case") > -1) {
-      const id = url.replace("/case/", "");
-      const media = this.medias.find((media) => media.id === id);
-
-      media.onOpen();
-    } else {
-      each(this.medias, (media) => media.onClose());
-    }
-  }
-
-  /**
-   * Touch.
-   */
-  onTouchDown(event) {}
-
-  onTouchMove(event) {}
-
-  onTouchUp(event) {}
-
-  /**
-   * Wheel.
-   */
-  onWheel(event) {}
-
-  /**
-   * Resize.
-   */
   onResize() {
     this.screen = {
       height: window.innerHeight,
@@ -155,12 +99,13 @@ export default class {
       width,
     };
 
-    this.post.resize();
-
-    this.resolution.value.set(this.gl.canvas.width, this.gl.canvas.height);
+    const values = {
+      screen: this.screen,
+      viewport: this.viewport,
+    };
 
     if (this.medias) {
-      each(this.medias, (media) =>
+      this.medias.forEach((media) =>
         media.onResize({
           screen: this.screen,
           viewport: this.viewport,
@@ -169,26 +114,22 @@ export default class {
     }
   }
 
-  /**
-   * Update.
-   */
-  update(scroll) {
-    this.gl.clearColor(
-      this.background.r / 255,
-      this.background.g / 255,
-      this.background.b / 255,
-      1
-    );
+  onTouchDown(event) {}
 
-    if (this.medias) {
-      each(this.medias, (media) => {
-        media.update(scroll);
-      });
-    }
+  onTouchMove(event) {}
 
-    this.post.render({
+  onTouchUp(event) {}
+
+  update(application) {
+    if (!application) return;
+
+    this.renderer.render({
       scene: this.scene,
       camera: this.camera,
     });
+
+    if (this.medias) {
+      this.medias.forEach((media) => media.update(this.scroll, this.direction));
+    }
   }
 }

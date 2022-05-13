@@ -1,239 +1,156 @@
-import AutoBind from 'auto-bind'
-import GSAP from 'gsap'
-import { Mesh, Program, TextureLoader } from 'ogl'
+import { Mesh, Program, Texture } from "ogl";
 
-import Detection from 'classes/Detection'
+import fragment from "../../shaders/fragment.glsl";
+import vertex from "../../shaders/vertex.glsl";
 
-import fragment from 'shaders/fragment.glsl'
-import vertex from 'shaders/vertex.glsl'
-
-import { getOffset } from 'utils/dom'
-import { delay, lerp } from 'utils/math'
+import { map } from "../../utils/math";
 
 export default class {
-  constructor ({ caseMedia, geometry, gl, homeList, homeItem, homeLink, homeLinkMedia, id, scene, screen, viewport }) {
-    AutoBind(this)
+  constructor({
+    geometry,
+    gl,
+    image,
+    index,
+    length,
+    renderer,
+    scene,
+    screen,
+    viewport,
+  }) {
+    this.extra = 0;
 
-    this.alpha = {
-      current: 0,
-      target: 0,
-      ease: 0.15
-    }
+    this.geometry = geometry;
+    this.gl = gl;
+    this.image = image;
+    this.index = index;
+    this.length = length;
+    this.renderer = renderer;
+    this.scene = scene;
+    this.screen = screen;
+    this.viewport = viewport;
 
-    this.transition = 0
+    this.createShader();
+    this.createMesh();
+    this.createTitle();
 
-    this.geometry = geometry
-    this.gl = gl
-    this.scene = scene
-
-    this.caseMedia = caseMedia
-
-    this.homeList = homeList
-    this.homeItem = homeItem
-    this.homeLink = homeLink
-    this.homeLinkMedia = homeLinkMedia
-
-    this.direction = homeLinkMedia.getAttribute('data-direction')
-    this.id = id
-
-    this.screen = screen
-    this.viewport = viewport
-
-    this.createMesh()
-    this.createBounds()
-    this.createListeners()
-    this.createTween()
-
-    this.onResize()
+    this.onResize();
   }
 
-  createMesh () {
-    const texture = TextureLoader.load(this.gl, {
-      src: this.homeLinkMedia.getAttribute(Detection.isWebPSupported() ? 'data-src-webp' : 'data-src')
-    })
+  createShader() {
+    const texture = new Texture(this.gl, {
+      generateMipmaps: false,
+    });
 
-    const program = new Program(this.gl, {
+    this.program = new Program(this.gl, {
+      depthTest: false,
+      depthWrite: false,
       fragment,
       vertex,
       uniforms: {
-        uAlpha: { value: 0 },
-        uDirection: { value: this.direction === 'left' ? 0.5 : -0.5 },
-        uTime: { value: 0 },
-        uMultiplier: { value: 1 },
-        tMap: { value: texture }
+        tMap: { value: texture },
+        uPlaneSizes: { value: [0, 0] },
+        uImageSizes: { value: [0, 0] },
+        uViewportSizes: { value: [this.viewport.width, this.viewport.height] },
+        uSpeed: { value: 0 },
+        uTime: { value: 100 * Math.random() },
       },
-      transparent: true
-    })
+      transparent: true,
+    });
 
+    const image = new Image();
+
+    image.src = this.image;
+    image.onload = (_) => {
+      texture.image = image;
+
+      this.program.uniforms.uImageSizes.value = [
+        image.naturalWidth,
+        image.naturalHeight,
+      ];
+    };
+  }
+
+  createMesh() {
     this.plane = new Mesh(this.gl, {
       geometry: this.geometry,
-      program
-    })
+      program: this.program,
+    });
 
-    this.plane.setParent(this.scene)
+    this.plane.setParent(this.scene);
   }
 
-  createBounds () {
-    this.boundsList = getOffset(this.homeList)
-    this.boundsHome = getOffset(this.homeLinkMedia)
-    this.boundsCase = getOffset(this.caseMedia, this.scroll)
+  update(scroll, direction) {
+    this.plane.position.x = this.x - scroll.current - this.extra;
+    this.plane.position.y =
+      Math.cos((this.plane.position.x / this.widthTotal) * Math.PI) * 75 - 74.5;
+    this.plane.rotation.z = map(
+      this.plane.position.x,
+      -this.widthTotal,
+      this.widthTotal,
+      Math.PI,
+      -Math.PI
+    );
 
-    this.updateScale()
-    this.updateX()
-    this.updateY()
-  }
+    this.speed = scroll.current - scroll.last;
 
-  createListeners () {
-    if (Detection.isMobile()) {
-      this.homeLink.addEventListener('touchstart', this.onMouseOver, { passive: true })
+    this.program.uniforms.uTime.value += 0.04;
+    this.program.uniforms.uSpeed.value = this.speed;
 
-      window.addEventListener('touchend', this.onMouseLeave, { passive: true })
-    } else {
-      this.homeLink.addEventListener('mouseover', this.onMouseOver)
-      this.homeLink.addEventListener('mouseout', this.onMouseLeave)
-    }
-  }
+    const planeOffset = this.plane.scale.x / 2;
+    const viewportOffset = this.viewport.width;
 
-  createTween () {
-    this.animation = GSAP.timeline({ paused: true })
+    this.isBefore = this.plane.position.x + planeOffset < -viewportOffset;
+    this.isAfter = this.plane.position.x - planeOffset > viewportOffset;
 
-    this.animation.fromTo(this, {
-      transition: 0
-    }, {
-      delay: 0.5,
-      duration: 1.5,
-      ease: 'expo.inOut',
-      transition: 1
-    }, 'start')
+    if (direction === "right" && this.isBefore) {
+      this.extra -= this.widthTotal;
 
-    this.animation.fromTo(this.plane.program.uniforms.uMultiplier, {
-      value: 1
-    }, {
-      duration: 1.5,
-      ease: 'power4.in',
-      value: 0,
-    }, 'start')
-  }
-
-  updateScale () {
-    this.height = lerp(this.boundsHome.height, this.boundsCase.height, this.transition)
-    this.width = lerp(this.boundsHome.width, this.boundsCase.width, this.transition)
-
-    this.plane.scale.x = this.viewport.width * this.width / this.screen.width
-    this.plane.scale.y = this.viewport.height * this.height / this.screen.height
-  }
-
-  updateY (y) {
-    this.y = lerp(this.boundsHome.top + (this.homeItem.position % this.boundsList.height), this.boundsCase.top - y, this.transition)
-
-    this.plane.position.y = (this.viewport.height / 2) - (this.plane.scale.y / 2) - (this.y / this.screen.height) * this.viewport.height
-  }
-
-  updateX () {
-    this.x = lerp(this.boundsHome.left, this.boundsCase.left, this.transition)
-
-    this.plane.position.x = -(this.viewport.width / 2) + (this.plane.scale.x / 2) + (this.x / this.screen.width) * this.viewport.width
-  }
-
-  updateAlpha () {
-    if (Detection.isMobile()) {
-      if (this.isOpened) {
-        this.alpha.target = 1
-      } else {
-        this.alpha.target = 0
-      }
-    } else {
-      if (this.isOpened || this.isHovering) {
-        this.alpha.target = 1
-      } else {
-        this.alpha.target = 0
-      }
+      this.isBefore = false;
+      this.isAfter = false;
     }
 
-    if (this.alpha.current === this.alpha.target) return
+    if (direction === "left" && this.isAfter) {
+      this.extra += this.widthTotal;
 
-    this.alpha.current = lerp(this.alpha.current, this.alpha.target, this.alpha.ease, true)
-
-    if (this.alpha.current < 0.01) {
-      this.alpha.current = 0
-    } else if (this.alpha.current > 0.99) {
-      this.alpha.current = 1
-    }
-
-    this.plane.program.uniforms.uAlpha.value = this.alpha.current
-  }
-
-  updateVisibility () {
-    if (this.alpha.current === 0 && this.plane.visible) {
-      this.plane.visible = false
-    } else if (this.alpha.current !== 0 && !this.plane.visible) {
-      this.plane.visible = true
-    }
-  }
-
-  update (y) {
-    this.scroll = y
-
-    this.updateScale()
-    this.updateX()
-    this.updateY(y)
-    this.updateAlpha()
-    this.updateVisibility()
-
-    if (this.alpha.current > 0) {
-      this.plane.program.uniforms.uTime.value += (this.direction === 'left' ? 0.04 : -0.04)
+      this.isBefore = false;
+      this.isAfter = false;
     }
   }
 
   /**
    * Events.
    */
-  onResize (sizes) {
-    if (sizes) {
-      const { screen, viewport } = sizes
-
-      if (screen) this.screen = screen
-      if (viewport) this.viewport = viewport
+  onResize({ screen, viewport } = {}) {
+    if (screen) {
+      this.screen = screen;
     }
 
-    this.createBounds()
-  }
+    if (viewport) {
+      this.viewport = viewport;
 
-  onMouseOver () {
-    this.isHovering = true
-  }
-
-  onMouseLeave () {
-    this.isHovering = false
-  }
-
-  /**
-   * About.
-   */
-  onAboutOpen () {
-    this.isAboutOpened = true
-  }
-
-  onAboutClose () {
-    this.isAboutOpened = false
-  }
-
-  /**
-   * Methods.
-   */
-  onOpen () {
-    this.isOpened = true
-
-    this.animation.play()
-  }
-
-  async onClose () {
-    this.animation.reverse()
-
-    if (!this.isAboutOpened) {
-      await delay(1000)
+      this.plane.program.uniforms.uViewportSizes.value = [
+        this.viewport.width,
+        this.viewport.height,
+      ];
     }
 
-    this.isOpened = false
+    this.scale = this.screen.height / 1500;
+
+    this.plane.scale.y =
+      (this.viewport.height * (900 * this.scale)) / this.screen.height;
+    this.plane.scale.x =
+      (this.viewport.width * (700 * this.scale)) / this.screen.width;
+
+    this.plane.program.uniforms.uPlaneSizes.value = [
+      this.plane.scale.x,
+      this.plane.scale.y,
+    ];
+
+    this.padding = 2;
+
+    this.width = this.plane.scale.x + this.padding;
+    this.widthTotal = this.width * this.length;
+
+    this.x = this.width * this.index;
   }
 }

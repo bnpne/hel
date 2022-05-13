@@ -1,25 +1,22 @@
-attribute vec2 uv;
+precision highp float;
+
 attribute vec3 position;
+attribute vec2 uv;
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 
-uniform float uDirection;
-uniform float uMultiplier;
 uniform float uTime;
+uniform float uSpeed;
 
-varying float vDisplacement;
 varying vec2 vUv;
 
 void main() {
   vUv = uv;
 
-  vec3 newPosition = position;
+  vec3 p = position;
 
-  float z = cos(uTime + newPosition.x * mix(1.0, 3.0, uMultiplier));
-  newPosition.z += z * (position.x - uDirection) * 0.4;
-  vDisplacement = newPosition.z;
-  newPosition.z *= uMultiplier;
+  p.z = (sin(p.x * 4.0 + uTime) * 1.5 + cos(p.y * 2.0 + uTime) * 1.5) * (0.1 + uSpeed * 0.5);
 
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }
