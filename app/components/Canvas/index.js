@@ -1,135 +1,172 @@
-import { Box, Camera, Plane, Renderer, Transform } from "ogl";
+/* eslint-disable no-unused-vars */
+import { Camera, Renderer, Transform } from "ogl";
 
-import Media from "./Media";
+import Home from "../Home";
 
-import Image1 from "../../../assets/1.jpg";
-
-export default class {
+export default class Canvas {
   constructor({ url }) {
     this.url = url;
 
-    this.renderer = new Renderer({
-      alpha: true,
-      dpr: Math.min(window.devicePixelRatio, 2),
-    });
+    this.x = {
+      start: 0,
+      distance: 0,
+      end: 0,
+    };
 
-    this.gl = this.renderer.gl;
-    this.gl.clearColor(0.79607843137, 0.79215686274, 0.74117647058, 1);
-    document.body.appendChild(this.gl.canvas);
+    this.y = {
+      start: 0,
+      distance: 0,
+      end: 0,
+    };
 
+    this.createRenderer();
     this.createCamera();
     this.createScene();
-    this.createGeometry();
-    // this.createGeometries();
-
-    this.createMedias();
+    this.createHome();
 
     this.onResize();
   }
 
+  createRenderer() {
+    this.renderer = new Renderer({
+      alpha: true,
+      antialias: true,
+    });
+    // console.log(this.renderer);
+
+    this.gl = this.renderer.gl;
+
+    document.body.appendChild(this.gl.canvas);
+  }
+
   createCamera() {
     this.camera = new Camera(this.gl);
-    this.camera.fov = 45;
-    this.camera.position.z = 20;
+
+    this.camera.position.z = 5;
   }
 
   createScene() {
     this.scene = new Transform();
   }
 
-  createGeometries() {
-    this.boxGeometry = new Box(this.gl, {
-      heightSegments: 20,
-      widthSegments: 1,
+  //   Home
+  createHome() {
+    this.home = new Home({
+      gl: this.gl,
+      scene: this.scene,
+      sizes: this.sizes,
     });
 
-    this.planeGeometry = new Plane(this.gl, {
-      heightSegments: 20,
-      widthSegments: 1,
-    });
+    console.log(this.home);
   }
 
-  createGeometry() {
-    this.planeGeometry = new Plane(this.gl, {
-      heightSegments: 50,
-      widthSegments: 100,
-    });
+  destroyHome() {
+    if (!this.home) return;
+
+    this.home.destroy();
+    this.home = null;
   }
 
-  createMedias() {
-    this.mediasImages = [{ image: Image1 }];
-
-    this.medias = this.mediasImages.map(({ image }, index) => {
-      const media = new Media({
-        geometry: this.planeGeometry,
-        gl: this.gl,
-        image,
-        index,
-        length: this.mediasImages.length,
-        renderer: this.renderer,
-        scene: this.scene,
-        screen: this.screen,
-        viewport: this.viewport,
-      });
-
-      return media;
-    });
-  }
-
-  onChange(url) {}
+  // // Events
+  // onPreloaded() {
+  //   this.onChangeEnd(this.template);
+  // }
 
   onResize() {
-    this.screen = {
-      height: window.innerHeight,
-      width: window.innerWidth,
-    };
-
-    this.renderer.setSize(this.screen.width, this.screen.height);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.camera.perspective({
-      aspect: this.gl.canvas.width / this.gl.canvas.height,
+      aspect: window.innerWidth / window.innerHeight,
     });
 
     const fov = this.camera.fov * (Math.PI / 180);
     const height = 2 * Math.tan(fov / 2) * this.camera.position.z;
     const width = height * this.camera.aspect;
 
-    this.viewport = {
+    this.sizes = {
       height,
       width,
     };
 
     const values = {
-      screen: this.screen,
-      viewport: this.viewport,
+      sizes: this.sizes,
     };
 
-    if (this.medias) {
-      this.medias.forEach((media) =>
-        media.onResize({
-          screen: this.screen,
-          viewport: this.viewport,
-        })
-      );
+    if (this.home) {
+      this.home.onResize(values);
     }
   }
 
-  onTouchDown(event) {}
+  onTouchDown(e) {
+    this.isDown = true;
 
-  onTouchMove(event) {}
+    this.x.start = e.touches ? e.touches[0].clientX : e.clientX;
+    this.y.start = e.touches ? e.touches[0].clientY : e.clientY;
 
-  onTouchUp(event) {}
+    const values = {
+      x: this.x,
+      y: this.y,
+    };
 
-  update(application) {
-    if (!application) return;
+    if (this.home) {
+      this.home.onTouchDown(values);
+    }
+  }
+
+  onTouchMove(e) {
+    if (!this.isDown) return;
+
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+    this.x.end = x;
+    this.y.end = y;
+
+    const values = {
+      x: this.x,
+      y: this.y,
+    };
+
+    if (this.home) {
+      this.home.onTouchMove(values);
+    }
+  }
+
+  onTouchUp(e) {
+    this.isDown = false;
+
+    const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+    this.x.end = x;
+    this.y.end = y;
+
+    const values = {
+      x: this.x,
+      y: this.y,
+    };
+
+    if (this.home) {
+      this.home.onTouchUp(values);
+    }
+  }
+
+  onWheel(e) {
+    if (this.home) {
+      this.home.onWheel(e);
+    }
+  }
+
+  // Loop.
+
+  update(scroll) {
+    if (this.home) {
+      this.home.update();
+    }
 
     this.renderer.render({
-      scene: this.scene,
       camera: this.camera,
+      scene: this.scene,
     });
-
-    if (this.medias) {
-      this.medias.forEach((media) => media.update(this.scroll, this.direction));
-    }
   }
 }

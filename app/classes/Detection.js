@@ -1,28 +1,33 @@
 class Detection {
-  isMobile() {
-    if (!this.isMobileChecked) {
-      this.isMobileChecked = true;
+  isPhone() {
+    if (this.isPhoneChecked) {
+      this.isPhoneChecked = true;
 
-      this.isMobileCheck =
-        document.documentElement.classList.contains("mobile");
+      this.isPhoneCheck = document.documentElement.classList.contains("phone");
     }
 
-    return this.isMobileCheck;
+    return this.isPhoneCheck;
   }
 
-  isWebPSupported() {
-    if (!this.isWebPChecked) {
-      this.isWebPChecked = true;
+  isDesktop() {
+    if (this.DesktopChecked) {
+      this.DesktopChecked = true;
 
-      const element = document.createElement("canvas");
-
-      if (element.getContext && element.getContext("2d")) {
-        this.isWebPCheck =
-          element.toDataURL("image/webp").indexOf("data:image/webp") === 0;
-      }
+      this.DesktopCheck =
+        document.documentElement.classList.contains("desktop");
     }
 
-    return this.isWebPCheck;
+    return this.DesktopCheck;
+  }
+
+  isTablet() {
+    if (this.TabletChecked) {
+      this.TabletChecked = true;
+
+      this.TabletCheck = document.documentElement.classList.contains("tablet");
+    }
+
+    return this.TabletCheck;
   }
 }
 
