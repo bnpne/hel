@@ -48,15 +48,15 @@ button {
   outline: none;
 }
 
-img {
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  vertical-align: middle;
+// img {
+//   opacity: 0;
+//   transition: opacity 0.4s ease;
+//   vertical-align: middle;
 
-  &.loaded {
-    opacity: 1;
-  }
-}
+//   &.loaded {
+//     opacity: 1;
+//   }
+// }
 
 .content {
   @extend %cover;

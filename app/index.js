@@ -44,11 +44,6 @@ class App {
     });
   }
 
-  createContent() {
-    this.content = document.querySelector(".content");
-    this.template = this.content.getAttribute("data-template");
-  }
-
   createPages() {
     this.pages = {
       "/": new Home(),
@@ -83,39 +78,6 @@ class App {
     await this.page.hide();
 
     const res = await window.fetch(url);
-
-    if (res.status === 200) {
-      const html = await res.text();
-      const div = document.createElement("div");
-
-      if (push) {
-        window.history.pushState({}, "", url);
-      }
-
-      div.innerHTML = html;
-
-      const divContent = div.querySelector(".content");
-
-      this.template = divContent.getAttribute("data-template");
-
-      this.navigation.onChange(this.template);
-
-      this.content.setAttribute("data-template", this.template);
-      this.content.innerHTML = divContent.innerHTML;
-
-      this.canvas.onChangeEnd(this.template);
-
-      this.page = this.pages[this.template];
-      this.page.create();
-
-      this.onResize();
-
-      this.page.show();
-
-      this.addLinkListeners();
-    } else {
-      console.error(`response status: ${res.status}`);
-    }
   }
 
   onResize() {
